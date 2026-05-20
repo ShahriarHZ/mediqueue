@@ -68,17 +68,23 @@ const handleRegister = async (e) => {
     }
   };
 
-  const handleGoogleLogin = () => {
+ const handleGoogleLogin = () => {
     try {
       window.google.accounts.id.initialize({
-        client_id: "1048318158494-2e05bvoemigkrifka2g42dvpcgcupf9h.apps.googleusercontent.com", // Corrected Console Client ID
+        client_id: "1048318158494-2e05bvoemigkrifka2g42dvpcgcupf9h.apps.googleusercontent.com", 
         callback: async (googleResponse) => {
           const idToken = googleResponse.credential; 
           
-          // Parse Google account JWT profile payload
+          // Unicode-safe Base64URL string decoder 
           const base64Url = idToken.split('.')[1];
           const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const decodedPayload = JSON.parse(window.atob(base64));
+          const jsonPayload = decodeURIComponent(
+            window.atob(base64)
+              .split('')
+              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const decodedPayload = JSON.parse(jsonPayload);
 
           const activeUser = {
             email: decodedPayload.email,
@@ -86,24 +92,35 @@ const handleRegister = async (e) => {
             photo: decodedPayload.picture
           };
 
-          // Auto-register inside MongoDB Atlas if account doesn't exist yet
-          await axios.post(`${API_BASE_URL}/register`, {
-            name: activeUser.name,
-            email: activeUser.email,
-            photo: activeUser.photo,
-            password: "GOOGLE_OAUTH_SECURE_SESSION" 
-          });
+          // -------------------------------------------------------------------------
+          // SAFE SYNC FIX: Attempt account synchronization, skip if already exists
+          // -------------------------------------------------------------------------
+          try {
+            await axios.post(`${API_BASE_URL}/register`, {
+              name: activeUser.name,
+              email: activeUser.email,
+              photo: activeUser.photo,
+              password: "GOOGLE_OAUTH_SECURE_SESSION" 
+            });
+          } catch (signUpErr) {
+            // If it returns a 400 error (user already exists), log it and move forward safely!
+            console.log("Sync notice: User account already registered in Atlas.");
+          }
 
-          // Grab secure token from backend
+          // -------------------------------------------------------------------------
+          // CRITICAL PIPELINE CORRECTION: Pull JWT session token seamlessly
+          // -------------------------------------------------------------------------
           const response = await axios.post(`${API_BASE_URL}/jwt`, { email: activeUser.email });
           
           if (response.data.token) {
             localStorage.setItem("mq-token", response.data.token);
             localStorage.setItem("mq-user", JSON.stringify(activeUser));
-            setUser(activeUser);
             
-            toast.success(`Success! Registered and logged in as ${activeUser.name} 🎉`);
+            setUser(activeUser); // Update local layout state immediately
+            
+            toast.success(`Success! Authenticated as ${activeUser.name} 🎉`);
             router.push("/");
+            router.refresh();
           }
         }
       });
@@ -115,7 +132,7 @@ const handleRegister = async (e) => {
       toast.error("Google authentication link broken on runtime pipelines.");
     }
   };
-
+  
   return (
     <div className="hero min-h-[80vh] flex items-center justify-center animate-fade-in">
       <div className="card w-full max-w-md shadow-2xl bg-base-100 border border-base-200 rounded-2xl overflow-hidden">
