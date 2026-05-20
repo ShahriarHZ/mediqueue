@@ -41,7 +41,7 @@ export default function Register() {
 
     try {
       // Swapped process.env with explicit API_BASE_URL handle
-      console.log({API_BASE_URL});
+      console.log({API_BASE_URL: process.env.NEXT_PUBLIC_API_URL});
       const response = await axios.post(`${API_BASE_URL}/register`, {
         name, email, photo, password
       });
