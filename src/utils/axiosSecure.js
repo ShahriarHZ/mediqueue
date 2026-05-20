@@ -1,7 +1,10 @@
 import axios from "axios";
 
+// Automatically falls back to localhost if the Vercel environment variable isn't active
+const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
 const axiosSecure = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: baseURL,
 });
 
 // Automatically injects your local storage pass token into every outgoing request header
