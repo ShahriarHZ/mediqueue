@@ -13,6 +13,9 @@ export default function Register() {
   const [formData, setFormData] = useState({ name: "", email: "", photo: "", password: "" });
   const [error, setError] = useState("");
 
+  // Production Target Backend Link Fallback
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mediqueue-server-zeta.vercel.app";
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
@@ -37,7 +40,8 @@ export default function Register() {
     }
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/register`, {
+      // Swapped process.env with explicit API_BASE_URL handle
+      const response = await axios.post(`${API_BASE_URL}/register`, {
         name, email, photo, password
       });
 
@@ -52,7 +56,6 @@ export default function Register() {
     }
   };
 
-  // Dynamic Handler: Captures user's typed inputs to build their real account session
   const handleGoogleLogin = async () => {
     const { name, email, photo } = formData;
 
@@ -64,8 +67,8 @@ export default function Register() {
     try {
       const realUserPayload = { name, email, photo };
 
-      // Request server JWT signed specifically for this unique user email
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/jwt`, { email: realUserPayload.email });
+      // Swapped process.env with explicit API_BASE_URL handle
+      const response = await axios.post(`${API_BASE_URL}/jwt`, { email: realUserPayload.email });
       
       if (response.data.token) {
         localStorage.setItem("mq-token", response.data.token);
