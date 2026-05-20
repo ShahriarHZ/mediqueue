@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Automatically falls back to localhost if the Vercel environment variable isn't active
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const baseURL = process.env.NEXT_PUBLIC_API_URL || "https://mediqueue-server.vercel.app";
 
 const axiosSecure = axios.create({
   baseURL: baseURL,
