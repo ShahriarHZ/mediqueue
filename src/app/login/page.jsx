@@ -13,41 +13,51 @@ export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
 
+  // Target Backend Link Fallback
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mediqueue-server-zeta.vercel.app";
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
   };
 
   const handleLogin = async (e) => {
-  e.preventDefault();
-  setError("");
+    e.preventDefault();
+    setError("");
 
-  try {
-    // 1. Send the credentials to your Express backend
-    const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/login`, {
-      email,
-      password,
-    });
+    // CRITICAL FIX 1: Extract email and password from formData state!
+    const { email, password } = formData;
 
-    if (response.data.success && response.data.token) {
-      
-      // 2. CRITICAL FIX: Save it using 'mq-token' to match your interceptor!
-      localStorage.setItem("mq-token", response.data.token);
-      
-      // 3. Save user info for profile/navbar state management
-      localStorage.setItem("mq-user", JSON.stringify(response.data.user));
+    try {
+      // 1. Send the credentials to your Express backend
+      const response = await axios.post(`${API_BASE_URL}/login`, {
+        email,
+        password,
+      });
 
-      // 4. Redirect home and refresh the page layout
-      router.push("/");
-      router.refresh();
+      if (response.data.success && response.data.token) {
+        // 2. Save it using 'mq-token' to match your interceptor
+        localStorage.setItem("mq-token", response.data.token);
+        
+        // 3. Save user info for profile/navbar state management
+        localStorage.setItem("mq-user", JSON.stringify(response.data.user));
+
+        // CRITICAL FIX 2: Set the active user context state to update layout components instantly
+        setUser(response.data.user);
+
+        toast.success(`Welcome back, ${response.data.user.name || "User"}! 🎉`);
+
+        // 4. Redirect home and refresh the page layout
+        router.push("/");
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("Login client error:", err);
+      setError(err.response?.data?.message || "Invalid email or password.");
     }
-  } catch (err) {
-    console.error("Login client error:", err);
-    setError(err.response?.data?.message || "Invalid email or password.");
-  }
-};
+  };
 
-  // Dynamic Login Handler: Pulls inputted email to login existing context
+  // Dynamic Login Handler via Email Payload Verification Link
   const handleGoogleLogin = async () => {
     const { email } = formData;
 
@@ -59,11 +69,11 @@ export default function Login() {
     try {
       const activeUser = {
         email: email,
-        name: email.split('@')[0], // Extract clean username from email prefix
-        photo: "https://i.ibb.co/C2n1m9v/default-avatar.png" // Fallback placeholder avatar
+        name: email.split('@')[0], 
+        photo: "https://i.ibb.co/C2n1m9v/default-avatar.png" 
       };
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/jwt`, { email: activeUser.email });
+      const response = await axios.post(`${API_BASE_URL}/jwt`, { email: activeUser.email });
       
       if (response.data.token) {
         localStorage.setItem("mq-token", response.data.token);
