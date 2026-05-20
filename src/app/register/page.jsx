@@ -57,7 +57,7 @@ export default function Register() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+const handleGoogleLogin = async () => {
     const { name, email, photo } = formData;
 
     if (!name || !email || !photo) {
@@ -68,7 +68,7 @@ export default function Register() {
     try {
       const realUserPayload = { name, email, photo };
 
-      // Swapped process.env with explicit API_BASE_URL handle
+      // Fixed: Explicitly uses API_BASE_URL handle
       const response = await axios.post(`${API_BASE_URL}/jwt`, { email: realUserPayload.email });
       
       if (response.data.token) {
@@ -80,6 +80,7 @@ export default function Register() {
         router.push("/");
       }
     } catch (err) {
+      console.error("Google handle failure:", err);
       toast.error("Handshake pipeline blocked during dynamic session registration.");
     }
   };

@@ -58,7 +58,7 @@ export default function Login() {
   };
 
   // Dynamic Login Handler via Email Payload Verification Link
-  const handleGoogleLogin = async () => {
+const handleGoogleLogin = async () => {
     const { email } = formData;
 
     if (!email) {
@@ -73,6 +73,7 @@ export default function Login() {
         photo: "https://i.ibb.co/C2n1m9v/default-avatar.png" 
       };
 
+      // Fixed: Uses API_BASE_URL fallback to hit your production serverless endpoints safely
       const response = await axios.post(`${API_BASE_URL}/jwt`, { email: activeUser.email });
       
       if (response.data.token) {
@@ -83,10 +84,11 @@ export default function Login() {
         router.push("/");
       }
     } catch (err) {
+      console.error("Google login failure:", err);
       toast.error("Google authentication link broken on runtime pipelines.");
     }
   };
-
+  
   return (
     <div className="hero min-h-[80vh] flex items-center justify-center animate-fade-in">
       <div className="card w-full max-w-md shadow-2xl bg-base-100 border border-base-200 rounded-2xl overflow-hidden">
