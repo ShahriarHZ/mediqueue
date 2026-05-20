@@ -13,8 +13,8 @@ export default function Register() {
   const [formData, setFormData] = useState({ name: "", email: "", photo: "", password: "" });
   const [error, setError] = useState("");
 
-  // Production Target Backend Link Fallback
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+  // Unified production backend URL fallback
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mediqueue-server-zeta.vercel.app";
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,7 +25,7 @@ export default function Register() {
     e.preventDefault();
     const { name, email, photo, password } = formData;
 
-    // Assignment Password Validation Rules
+    // Password Validation Rules
     if (password.length < 6) {
       setError("Password length must be at least 6 characters.");
       return;
@@ -40,8 +40,6 @@ export default function Register() {
     }
 
     try {
-      // Swapped process.env with explicit API_BASE_URL handle
-      console.log({API_BASE_URL: process.env.NEXT_PUBLIC_API_URL});
       const response = await axios.post(`${API_BASE_URL}/register`, {
         name, email, photo, password
       });
@@ -57,31 +55,51 @@ export default function Register() {
     }
   };
 
-const handleGoogleLogin = async () => {
-    const { name, email, photo } = formData;
-
-    if (!name || !email || !photo) {
-      toast.info("ℹ️ Please type your Name, Email, and Photo-URL fields first, then click Continue with Google!");
-      return;
-    }
-
+  const handleGoogleLogin = () => {
     try {
-      const realUserPayload = { name, email, photo };
+      window.google.accounts.id.initialize({
+        client_id: "1048318158494-2e05bvoemigkrifka2g42dvpcgcupf9h.apps.googleusercontent.com", // Corrected Console Client ID
+        callback: async (googleResponse) => {
+          const idToken = googleResponse.credential; 
+          
+          // Parse Google account JWT profile payload
+          const base64Url = idToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const decodedPayload = JSON.parse(window.atob(base64));
 
-      // Fixed: Explicitly uses API_BASE_URL handle
-      const response = await axios.post(`${API_BASE_URL}/jwt`, { email: realUserPayload.email });
+          const activeUser = {
+            email: decodedPayload.email,
+            name: decodedPayload.name,
+            photo: decodedPayload.picture
+          };
+
+          // Auto-register inside MongoDB Atlas if account doesn't exist yet
+          await axios.post(`${API_BASE_URL}/register`, {
+            name: activeUser.name,
+            email: activeUser.email,
+            photo: activeUser.photo,
+            password: "GOOGLE_OAUTH_SECURE_SESSION" 
+          });
+
+          // Grab secure token from backend
+          const response = await axios.post(`${API_BASE_URL}/jwt`, { email: activeUser.email });
+          
+          if (response.data.token) {
+            localStorage.setItem("mq-token", response.data.token);
+            localStorage.setItem("mq-user", JSON.stringify(activeUser));
+            setUser(activeUser);
+            
+            toast.success(`Success! Registered and logged in as ${activeUser.name} 🎉`);
+            router.push("/");
+          }
+        }
+      });
+
+      window.google.accounts.id.prompt();
       
-      if (response.data.token) {
-        localStorage.setItem("mq-token", response.data.token);
-        localStorage.setItem("mq-user", JSON.stringify(realUserPayload));
-        
-        setUser(realUserPayload);
-        toast.success(`Success! Registered and logged in as ${realUserPayload.name} 🎉`);
-        router.push("/");
-      }
     } catch (err) {
-      console.error("Google handle failure:", err);
-      toast.error("Handshake pipeline blocked during dynamic session registration.");
+      console.error("Google Handshake error:", err);
+      toast.error("Google authentication link broken on runtime pipelines.");
     }
   };
 

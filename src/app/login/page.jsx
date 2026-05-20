@@ -13,7 +13,7 @@ export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
 
-  // Target Backend Link Fallback
+  // Unified production backend URL fallback
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mediqueue-server-zeta.vercel.app";
 
   const handleChange = (e) => {
@@ -25,29 +25,23 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    // CRITICAL FIX 1: Extract email and password from formData state!
+    // Destructure out email and password fields securely
     const { email, password } = formData;
 
     try {
-      // 1. Send the credentials to your Express backend
       const response = await axios.post(`${API_BASE_URL}/login`, {
         email,
         password,
       });
 
       if (response.data.success && response.data.token) {
-        // 2. Save it using 'mq-token' to match your interceptor
         localStorage.setItem("mq-token", response.data.token);
-        
-        // 3. Save user info for profile/navbar state management
         localStorage.setItem("mq-user", JSON.stringify(response.data.user));
 
-        // CRITICAL FIX 2: Set the active user context state to update layout components instantly
+        // Assign user global identity hook
         setUser(response.data.user);
 
         toast.success(`Welcome back, ${response.data.user.name || "User"}! 🎉`);
-
-        // 4. Redirect home and refresh the page layout
         router.push("/");
         router.refresh();
       }
@@ -57,17 +51,14 @@ export default function Login() {
     }
   };
 
-  // Dynamic Login Handler via Email Payload Verification Link
-const handleGoogleLogin = () => {
+  const handleGoogleLogin = () => {
     try {
-      // 1. Initialize the authentic Google authentication client window
       window.google.accounts.id.initialize({
-        client_id: "1043818158494-2e05bvoemigkrifka2g42dvpcgcupf9h.apps.googleusercontent.com", // Your direct Client ID
+        client_id: "1048318158494-2e05bvoemigkrifka2g42dvpcgcupf9h.apps.googleusercontent.com", // Corrected Console Client ID
         callback: async (googleResponse) => {
-          // This token is returned securely by Google's pipeline
           const idToken = googleResponse.credential; 
           
-          // Decode the token locally to grab profile information cleanly
+          // Parse Google account profile payload
           const base64Url = idToken.split('.')[1];
           const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
           const decodedPayload = JSON.parse(window.atob(base64));
@@ -78,13 +69,13 @@ const handleGoogleLogin = () => {
             photo: decodedPayload.picture
           };
 
-          // 2. Request a signed authorization JWT directly from your Vercel backend server
+          // Generate dynamic app session key from backend
           const response = await axios.post(`${API_BASE_URL}/jwt`, { email: activeUser.email });
           
           if (response.data.token) {
             localStorage.setItem("mq-token", response.data.token);
             localStorage.setItem("mq-user", JSON.stringify(activeUser));
-            setUser(activeUser); // Refresh context states instantly
+            setUser(activeUser);
             
             toast.success(`Welcome back! Logged in as ${activeUser.name} 🎉`);
             router.push("/");
@@ -92,15 +83,14 @@ const handleGoogleLogin = () => {
         }
       });
 
-      // 3. Command Google to open the interactive selection window overlay
       window.google.accounts.id.prompt();
       
     } catch (err) {
-      console.error("Google Handshake error:", err);
+      console.error("Google login failure:", err);
       toast.error("Google authentication link broken on runtime pipelines.");
     }
   };
-  
+
   return (
     <div className="hero min-h-[80vh] flex items-center justify-center animate-fade-in">
       <div className="card w-full max-w-md shadow-2xl bg-base-100 border border-base-200 rounded-2xl overflow-hidden">
