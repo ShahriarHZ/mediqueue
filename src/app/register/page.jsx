@@ -21,7 +21,7 @@ export default function Register() {
     setError("");
   };
 
-  const handleRegister = async (e) => {
+const handleRegister = async (e) => {
     e.preventDefault();
     const { name, email, photo, password } = formData;
 
@@ -44,9 +44,22 @@ export default function Register() {
         name, email, photo, password
       });
 
-      if (response.data.success) {
-        toast.success("Registration completed successfully! Please Log in.");
-        router.push("/login");
+      // -------------------------------------------------------------------------
+      // CRITICAL UPDATE: Capture the session token and log the user in instantly!
+      // -------------------------------------------------------------------------
+      if (response.data.success && response.data.token) {
+        // 1. Store token and profile data cleanly into local storage
+        localStorage.setItem("mq-token", response.data.token);
+        localStorage.setItem("mq-user", JSON.stringify(response.data.user));
+
+        // 2. Dispatch data to your global auth state context hook instantly
+        setUser(response.data.user);
+
+        toast.success(`Welcome to MediQueue, ${response.data.user.name}! 🎉 Account created successfully.`);
+        
+        // 3. Route directly to the home screen instead of the login form
+        router.push("/");
+        router.refresh();
       }
     } catch (err) {
       const msg = err.response?.data?.message || "Registration workflow blocked.";
