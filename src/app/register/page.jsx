@@ -41,7 +41,8 @@ export default function Register() {
 
     try {
       // Swapped process.env with explicit API_BASE_URL handle
-      const response = await axios.post(`https://mediqueue-server-zeta.vercel.app/register`, {
+      console.log({API_BASE_URL});
+      const response = await axios.post(`${API_BASE_URL}/register`, {
         name, email, photo, password
       });
 
