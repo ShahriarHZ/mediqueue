@@ -14,7 +14,7 @@ export default function Register() {
   const [error, setError] = useState("");
 
   // Production Target Backend Link Fallback
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mediqueue-server-zeta.vercel.app";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -41,7 +41,7 @@ export default function Register() {
 
     try {
       // Swapped process.env with explicit API_BASE_URL handle
-      const response = await axios.post(`${API_BASE_URL}/register`, {
+      const response = await axios.post(`https://mediqueue-server-zeta.vercel.app/register`, {
         name, email, photo, password
       });
 
