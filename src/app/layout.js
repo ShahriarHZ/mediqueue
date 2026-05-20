@@ -4,7 +4,7 @@ import Footer from "../components/Footer";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
-
+import Script from "next/script";
 // Keep your metadata and font configurations here at the top...
 
 export default function RootLayout({ children }) {
@@ -17,6 +17,10 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           
           <Navbar />
+          <Script 
+          src="https://accounts.google.com/gsi/client" 
+          strategy="beforeInteractive" 
+        />
           
           <main className="flex-grow container mx-auto px-4 md:px-8 py-6">
             {children}

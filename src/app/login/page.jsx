@@ -58,33 +58,45 @@ export default function Login() {
   };
 
   // Dynamic Login Handler via Email Payload Verification Link
-const handleGoogleLogin = async () => {
-    const { email } = formData;
-
-    if (!email) {
-      toast.info("ℹ️ Please type your account Email address first, then click Continue with Google!");
-      return;
-    }
-
+const handleGoogleLogin = () => {
     try {
-      const activeUser = {
-        email: email,
-        name: email.split('@')[0], 
-        photo: "https://i.ibb.co/C2n1m9v/default-avatar.png" 
-      };
+      // 1. Initialize the authentic Google authentication client window
+      window.google.accounts.id.initialize({
+        client_id: "1043818158494-2e05bvoemigkrifka2g42dvpcgcupf9h.apps.googleusercontent.com", // Your direct Client ID
+        callback: async (googleResponse) => {
+          // This token is returned securely by Google's pipeline
+          const idToken = googleResponse.credential; 
+          
+          // Decode the token locally to grab profile information cleanly
+          const base64Url = idToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const decodedPayload = JSON.parse(window.atob(base64));
 
-      // Fixed: Uses API_BASE_URL fallback to hit your production serverless endpoints safely
-      const response = await axios.post(`${API_BASE_URL}/jwt`, { email: activeUser.email });
+          const activeUser = {
+            email: decodedPayload.email,
+            name: decodedPayload.name,
+            photo: decodedPayload.picture
+          };
+
+          // 2. Request a signed authorization JWT directly from your Vercel backend server
+          const response = await axios.post(`${API_BASE_URL}/jwt`, { email: activeUser.email });
+          
+          if (response.data.token) {
+            localStorage.setItem("mq-token", response.data.token);
+            localStorage.setItem("mq-user", JSON.stringify(activeUser));
+            setUser(activeUser); // Refresh context states instantly
+            
+            toast.success(`Welcome back! Logged in as ${activeUser.name} 🎉`);
+            router.push("/");
+          }
+        }
+      });
+
+      // 3. Command Google to open the interactive selection window overlay
+      window.google.accounts.id.prompt();
       
-      if (response.data.token) {
-        localStorage.setItem("mq-token", response.data.token);
-        localStorage.setItem("mq-user", JSON.stringify(activeUser));
-        setUser(activeUser);
-        toast.success(`Welcome back! Logged in via ${activeUser.email} 🎉`);
-        router.push("/");
-      }
     } catch (err) {
-      console.error("Google login failure:", err);
+      console.error("Google Handshake error:", err);
       toast.error("Google authentication link broken on runtime pipelines.");
     }
   };
