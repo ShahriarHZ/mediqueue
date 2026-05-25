@@ -1,81 +1,47 @@
-"use client";
-import { useRouter } from "next/navigation";
-import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { FaBookOpen, FaClock, FaLocationDot } from "react-icons/fa6";
-import { toast } from "react-toastify";
+import React from 'react';
+import Link from 'next/link';
 
 export default function TutorCard({ tutor }) {
-  const router = useRouter();
-  const { user } = useContext(AuthContext); // Check if a user session is active
-
-  const handleBookSession = () => {
-    // Check if user is logged in
-    if (!user) {
-      toast.warning("🔒 You must log in to view tutor details and book sessions!");
-      router.push("/login");
-      return;
-    }
-    
-    // If logged in, send them straight to the private dynamic details path
-    router.push(`/tutors/${tutor._id}`);
-  };
-
   return (
-    <div className="card bg-base-100 shadow-xl border border-base-200 rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group h-full">
-      
-      {/* Top Image Section */}
-      <div className="relative h-56 w-full overflow-hidden bg-base-300">
+    <div className="card bg-base-100 shadow-xl border border-base-200 overflow-hidden hover:shadow-2xl transition-all duration-300">
+      <figure className="h-48 overflow-hidden bg-base-200 relative">
         <img 
-          src={tutor.image || "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=600"} 
+          src={tutor.photo || "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=600"} 
           alt={tutor.name} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-cover"
         />
-        <div className="absolute top-4 right-4 bg-primary text-primary-content text-xs font-black px-3 py-1.5 rounded-xl shadow-md">
-          ${tutor.hourlyFee}/hr
-        </div>
-      </div>
-
-      {/* Card Details Body */}
-      <div className="p-6 flex-grow flex flex-col justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-bold text-base-content truncate tracking-tight mb-1">
-            {tutor.name}
-          </h3>
-          <div className="flex items-center gap-2 text-primary font-semibold text-sm mb-3">
-            <FaBookOpen className="text-xs" />
-            <span>{tutor.subject}</span>
+      </figure>
+      
+      <div className="card-body p-5">
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="card-title text-xl font-bold text-base-content">{tutor.name}</h2>
+            <span className="badge badge-primary font-semibold text-xs mt-1">{tutor.subject}</span>
           </div>
-
-          {/* Description Snippet/Institution */}
-          <p className="text-xs text-base-content/60 line-clamp-2 mb-4">
-            {tutor.institution || "Verified Educator"} • {tutor.experience || "Expert Instructor"}
+          <div className="text-right">
+            <p className="text-primary font-black text-lg">${tutor.price}/hr</p>
+          </div>
+        </div>
+        
+        <div className="space-y-1 my-4 text-sm font-medium text-base-content/70 border-t border-b border-base-100 py-3">
+          <p className="flex justify-between">
+            <span>Slots Remaining:</span>
+            <span className="badge badge-ghost font-bold">{tutor.slots} left</span>
           </p>
-
-          {/* Balanced Meta Info */}
-          <div className="space-y-2 text-xs text-base-content/70 font-medium border-t border-base-200 pt-3">
-            <div className="flex items-center gap-3">
-              <FaClock className="text-primary text-xs shrink-0" />
-              <span className="truncate">{tutor.availability?.days || "Flexible Days"}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <FaLocationDot className="text-primary text-xs shrink-0" />
-              <span className="truncate">{tutor.location} ({tutor.teachingMode})</span>
-            </div>
-          </div>
+          <p className="text-xs mt-1">🏫 <span className="font-semibold">Institution:</span> {tutor.institution || "N/A"}</p>
+          <p className="text-xs">📍 <span className="font-semibold">Location:</span> {tutor.location}</p>
+          <p className="text-xs">📅 <span className="font-semibold">Days:</span> {tutor.days} ({tutor.time_slot})</p>
         </div>
-
-        {/* Dynamic Action Call */}
-        <div className="mt-2">
-          <button 
-            onClick={handleBookSession}
-            className="btn btn-primary w-full rounded-xl font-bold text-sm tracking-wide"
-          >
-            Book Session
-          </button>
+        
+        <div className="card-actions justify-end">
+          {/* ✅ Redirects dynamically to the unique tutor profile folder view */}
+          <Link href={`/tutors/${tutor.id}`} className="w-full">
+            <button className="btn btn-sm btn-primary w-full rounded-xl font-bold tracking-wide">
+              Book Session
+            </button>
+          </Link>
         </div>
       </div>
-
     </div>
   );
 }

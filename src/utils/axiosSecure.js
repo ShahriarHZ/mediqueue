@@ -1,24 +1,9 @@
-import axios from "axios";
-
-// Automatically falls back to localhost if the Vercel environment variable isn't active
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "https://mediqueue-server.vercel.app";
+import axios from 'axios';
 
 const axiosSecure = axios.create({
-  baseURL: baseURL,
+    // Dynamically reads the variable from your root .env file
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+    withCredentials: true
 });
-
-// Automatically injects your local storage pass token into every outgoing request header
-axiosSecure.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("mq-token");
-    if (token) {
-      config.headers.authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 export default axiosSecure;

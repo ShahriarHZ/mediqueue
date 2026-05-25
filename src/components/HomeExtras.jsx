@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
+import { AuthContext } from "@/context/AuthContext";
 import { FaUsers, FaStar, FaChalkboardTeacher, FaBookOpen } from "react-icons/fa";
 
 function Counter({ end, duration = 2000, suffix = "+" }) {
@@ -9,7 +10,6 @@ function Counter({ end, duration = 2000, suffix = "+" }) {
 
   useEffect(() => {
     let start = 0;
-
     const increment = end / (duration / 16);
 
     const timer = setInterval(() => {
@@ -35,6 +35,12 @@ function Counter({ end, duration = 2000, suffix = "+" }) {
 }
 
 export default function HomeExtras() {
+  // 1. Pull the live user session object from AuthContext
+  const { user } = useContext(AuthContext);
+
+  // 2. Compute dynamic route paths on render
+  const primaryTargetRoute = user?.email ? "/tutors" : "/login";
+
   const stats = [
     {
       value: 500,
@@ -114,52 +120,58 @@ export default function HomeExtras() {
 
       {/* ========================================================= */}
       {/* CTA SECTION */}
-<section className="w-full px-6 py-24 mt-24">
-  <div className="max-w-7xl mx-auto relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 shadow-2xl">
-    
-    {/* Background Glow */}
-    <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-3xl"></div>
-    <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
+      {/* ========================================================= */}
+      <section className="w-full px-6 py-24 mt-24">
+        <div className="max-w-7xl mx-auto relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 shadow-2xl">
+          
+          {/* Background Glow */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
 
-    <div className="relative z-10 flex flex-col items-center justify-center text-center px-8 py-20 md:px-16">
-      
-      {/* Top Badge */}
-      <div className="mb-8 px-8 py-3 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-sm text-neutral-300 font-medium">
-        🚀 Trusted by thousands of learners
-      </div>
+          <div className="relative z-10 flex flex-col items-center justify-center text-center px-8 py-20 md:px-16">
+            
+            {/* Top Badge */}
+            <div className="mb-8 px-8 py-3 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-sm text-neutral-300 font-medium">
+              🚀 Trusted by thousands of learners
+            </div>
 
-      {/* Heading */}
-      <h2 className="text-4xl md:text-6xl font-black leading-tight text-white">
-        Ready to Start
-      </h2>
+            {/* Heading */}
+            <h2 className="text-4xl md:text-6xl font-black leading-tight text-white">
+              Ready to Start
+            </h2>
 
-      <h2 className="text-4xl md:text-6xl font-black text-primary mt-1">
-        Learning Smarter?
-      </h2>
+            <h2 className="text-4xl md:text-6xl font-black text-primary mt-1">
+              Learning Smarter?
+            </h2>
 
-      {/* Description */}
-      <p className="mt-6 max-w-3xl text-lg md:text-xl text-neutral-300 leading-relaxed">
-        Join thousands of students already improving their grades,
-        building skills, and booking sessions with top tutors on
-        MediQueue.
-      </p>
+            {/* Description */}
+            <p className="mt-6 max-w-3xl text-lg md:text-xl text-neutral-300 leading-relaxed">
+              Join thousands of students already improving their grades,
+              building skills, and booking sessions with top tutors on
+              MediQueue.
+            </p>
 
-      {/* Buttons */}
-      <div className="mt-10 flex flex-col sm:flex-row items-center gap-5">
-        
-<Link href="/login">
-  <button className="btn h-14 px-10 rounded-2xl border-none bg-white text-slate-900 hover:bg-neutral-200 text-base font-bold shadow-lg hover:scale-105 transition duration-300">
-    Join Now for Free
-  </button>
-</Link>
+            {/* Dynamic Buttons Layer */}
+            <div className="mt-10 flex flex-col sm:flex-row items-center gap-5">
+              
+              {/* Dynamic Action 1: Takes user to tutors directory if logged in, otherwise routes to login */}
+              <Link href={primaryTargetRoute}>
+                <button className="btn h-14 px-10 rounded-2xl border-none bg-white text-slate-900 hover:bg-neutral-200 text-base font-bold shadow-lg hover:scale-105 transition duration-300">
+                  Join Now for Free
+                </button>
+              </Link>
 
-        <Link href={"/tutors"}><button className="btn h-14 px-10 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-black backdrop-blur-md text-base font-semibold transition duration-300">
-          Explore Tutors
-        </button></Link>
-      </div>
-    </div>
-  </div>
-</section>
+              {/* Dynamic Action 2: Explores listings directly if logged in, otherwise securely routes to sign-in matrix */}
+              <Link href={primaryTargetRoute}>
+                <button className="btn h-14 px-10 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white backdrop-blur-md text-base font-semibold hover:scale-105 transition duration-300">
+                  Explore Tutors
+                </button>
+              </Link>
+
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

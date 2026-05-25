@@ -1,185 +1,206 @@
-"use client";
-import { useState, useContext } from "react";
-import { useRouter } from "next/navigation";
-import { AuthContext } from "../../context/AuthContext";
-import Link from "next/link";
-import axios from "axios";
-import { toast } from "react-toastify";
-import { FaGoogle } from "react-icons/fa";
+'use client';
+import React, { useContext, useEffect } from 'react';
+import axiosSecure from '@/utils/axiosSecure'; // Adjust path if necessary
+import { AuthContext } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify'; // ✅ FIXED: Switched from 'react-hot-toast' to match your layout container
+import Link from 'next/link';
+import Script from 'next/script'; // ✅ Import Script to safely load the external API script file
 
-export default function Register() {
-  const router = useRouter();
-  const { setUser } = useContext(AuthContext);
-  const [formData, setFormData] = useState({ name: "", email: "", photo: "", password: "" });
-  const [error, setError] = useState("");
+export default function RegisterPage() {
+    const { setUser } = useContext(AuthContext);
+    const router = useRouter();
 
-  // Unified production backend URL fallback
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mediqueue-server-zeta.vercel.app";
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError("");
-  };
-
-const handleRegister = async (e) => {
-    e.preventDefault();
-    const { name, email, photo, password } = formData;
-
-    // Password Validation Rules
-    if (password.length < 6) {
-      setError("Password length must be at least 6 characters.");
-      return;
-    }
-    if (!/[A-Z]/.test(password)) {
-      setError("Password must contain at least one Uppercase letter.");
-      return;
-    }
-    if (!/[a-z]/.test(password)) {
-      setError("Password must contain at least one Lowercase letter.");
-      return;
-    }
-
-    try {
-      const response = await axios.post(`${API_BASE_URL}/register`, {
-        name, email, photo, password
-      });
-
-      // -------------------------------------------------------------------------
-      // CRITICAL UPDATE: Capture the session token and log the user in instantly!
-      // -------------------------------------------------------------------------
-      if (response.data.success && response.data.token) {
-        // 1. Store token and profile data cleanly into local storage
-        localStorage.setItem("mq-token", response.data.token);
-        localStorage.setItem("mq-user", JSON.stringify(response.data.user));
-
-        // 2. Dispatch data to your global auth state context hook instantly
-        setUser(response.data.user);
-
-        toast.success(`Welcome to MediQueue, ${response.data.user.name}! 🎉 Account created successfully.`);
-        
-        // 3. Route directly to the home screen instead of the login form
-        router.push("/");
-        router.refresh();
-      }
-    } catch (err) {
-      const msg = err.response?.data?.message || "Registration workflow blocked.";
-      setError(msg);
-      toast.error(msg);
-    }
-  };
-
- const handleGoogleLogin = () => {
-    try {
-      window.google.accounts.id.initialize({
-        client_id: "1048318158494-2e05bvoemigkrifka2g42dvpcgcupf9h.apps.googleusercontent.com", 
-        callback: async (googleResponse) => {
-          const idToken = googleResponse.credential; 
-          
-          // Unicode-safe Base64URL string decoder 
-          const base64Url = idToken.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(
-            window.atob(base64)
-              .split('')
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-          const decodedPayload = JSON.parse(jsonPayload);
-
-          const activeUser = {
-            email: decodedPayload.email,
-            name: decodedPayload.name,
-            photo: decodedPayload.picture
-          };
-
-          // -------------------------------------------------------------------------
-          // SAFE SYNC FIX: Attempt account synchronization, skip if already exists
-          // -------------------------------------------------------------------------
-          try {
-            await axios.post(`${API_BASE_URL}/register`, {
-              name: activeUser.name,
-              email: activeUser.email,
-              photo: activeUser.photo,
-              password: "GOOGLE_OAUTH_SECURE_SESSION" 
+    // ✅ Move initialization into a stable function that safely checks if script loaded
+    const initGoogleSignIn = () => {
+        if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+            window.google.accounts.id.initialize({
+                client_id: "794201743108-50ba4tq8devhqn9evj34lnim6spqvrkk.apps.googleusercontent.com",
+                use_fedcm: false,
+                callback: handleGoogleResponse
             });
-          } catch (signUpErr) {
-            // If it returns a 400 error (user already exists), log it and move forward safely!
-            console.log("Sync notice: User account already registered in Atlas.");
-          }
-
-          // -------------------------------------------------------------------------
-          // CRITICAL PIPELINE CORRECTION: Pull JWT session token seamlessly
-          // -------------------------------------------------------------------------
-          const response = await axios.post(`${API_BASE_URL}/jwt`, { email: activeUser.email });
-          
-          if (response.data.token) {
-            localStorage.setItem("mq-token", response.data.token);
-            localStorage.setItem("mq-user", JSON.stringify(activeUser));
-            
-            setUser(activeUser); // Update local layout state immediately
-            
-            toast.success(`Success! Authenticated as ${activeUser.name} 🎉`);
-            router.push("/");
-            router.refresh();
-          }
         }
-      });
+    };
 
-      window.google.accounts.id.prompt();
-      
-    } catch (err) {
-      console.error("Google Handshake error:", err);
-      toast.error("Google authentication link broken on runtime pipelines.");
-    }
-  };
-  
-  return (
-    <div className="hero min-h-[80vh] flex items-center justify-center animate-fade-in">
-      <div className="card w-full max-w-md shadow-2xl bg-base-100 border border-base-200 rounded-2xl overflow-hidden">
-        <div className="card-body p-8 gap-4">
-          <h2 className="text-3xl font-black text-center text-primary tracking-tight">Create Account</h2>
-          
-          {error && (
-            <div className="alert alert-error text-xs font-semibold py-2 px-3 rounded-xl">
-              <span>{error}</span>
-            </div>
-          )}
+    // Initialize Google Login on component mount
+    useEffect(() => {
+        // If script is already loaded dynamically, initialize right away
+        if (window.google?.accounts?.id) {
+            initGoogleSignIn();
+        }
+    }, []);
 
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="form-control">
-              <label className="label-text font-bold mb-1">Name</label>
-              <input type="text" name="name" value={formData.name} required onChange={handleChange} className="input input-bordered w-full rounded-xl" placeholder="Your Name" />
-            </div>
-            <div className="form-control">
-              <label className="label-text font-bold mb-1">Email</label>
-              <input type="email" name="email" value={formData.email} required onChange={handleChange} className="input input-bordered w-full rounded-xl" placeholder="name@example.com" />
-            </div>
-            <div className="form-control">
-              <label className="label-text font-bold mb-1">Photo-URL</label>
-              <input type="url" name="photo" value={formData.photo} required onChange={handleChange} className="input input-bordered w-full rounded-xl" placeholder="https://image-link.png" />
-            </div>
-            <div className="form-control">
-              <label className="label-text font-bold mb-1">Password</label>
-              <input type="password" name="password" value={formData.password} required onChange={handleChange} className="input input-bordered w-full rounded-xl" placeholder="••••••••" />
-            </div>
-            <button type="submit" className="btn btn-primary w-full rounded-xl font-bold">Register</button>
-          </form>
+    // Handle Google sign-in response
+    const handleGoogleResponse = async (googleResponse) => {
+        try {
+            const idToken = googleResponse.credential;
+            const base64Url = idToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+                window.atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+            );
+            const decoded = JSON.parse(jsonPayload);
 
-          <div className="divider text-xs text-base-content/40 uppercase tracking-widest my-1">OR</div>
+            const activeUser = {
+                name: decoded.name,
+                email: decoded.email,
+                photo: decoded.picture
+            };
 
-          <button 
-            onClick={handleGoogleLogin} 
-            type="button"
-            className="btn btn-outline border-base-300 hover:bg-neutral hover:text-neutral-content w-full rounded-xl font-bold gap-3"
-          >
-            <FaGoogle className="text-error" /> Continue with Google
-          </button>
-          
-          <p className="text-center text-sm font-medium text-base-content/70 mt-2">
-            Already have an account? <Link href="/login" className="link link-primary font-bold">Login here</Link>
-          </p>
+            // Sync user data to local MySQL backend
+            try {
+                await axiosSecure.post('/register', {
+                    name: activeUser.name,
+                    email: activeUser.email,
+                    photo: activeUser.photo,
+                    password: "GOOGLE_OAUTH_SECURE_SESSION"
+                });
+            } catch (err) {
+                console.log("Account sync: User already registered in MySQL.");
+            }
+
+            // Request JWT session token from local server
+            const jwtRes = await axiosSecure.post('/jwt', { email: activeUser.email });
+            if (jwtRes.data.token) {
+                localStorage.setItem("mq-token", jwtRes.data.token);
+                localStorage.setItem("mq-user", JSON.stringify(activeUser));
+                setUser(activeUser);
+                toast.success(`Welcome, ${activeUser.name}! 🎉`);
+                router.push("/");
+                router.refresh();
+            }
+        } catch (err) {
+            console.error("Google authentication error:", err);
+            toast.error("Google sync handshake failed.");
+        }
+    };
+
+    const triggerGooglePrompt = () => {
+        if (window.google?.accounts?.id) {
+            window.google.accounts.id.prompt();
+        } else {
+            toast.error("Google authentication script is still initializing.");
+        }
+    };
+
+    // Handle standard Email/Password form submission
+    const handleFormSubmit = async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const name = form.name.value;
+        const email = form.email.value;
+        const password = form.password.value;
+        const photo = form.photo?.value || "";
+
+        try {
+            const res = await axiosSecure.post('/register', { name, email, photo, password });
+            if (res.data.success) {
+                const activeUser = res.data.user;
+                localStorage.setItem("mq-token", res.data.token);
+                localStorage.setItem("mq-user", JSON.stringify(activeUser));
+                setUser(activeUser);
+                toast.success("Account successfully created in MySQL database! 🎉");
+                router.push("/");
+                router.refresh();
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error(err.response?.data?.message || "Registration failed.");
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-base-200/50 py-12 px-4">
+            {/* ✅ Load the Google client library safely for the standard Popup window pipeline */}
+            <Script 
+                src="https://accounts.google.com/gsi/client"
+                strategy="afterInteractive"
+                onLoad={initGoogleSignIn}
+            />
+
+            <div className="card w-full max-w-md bg-base-100 border border-base-200 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-neutral/10">
+                <div className="card-body p-8 sm:p-10">
+                    
+                    {/* Header Section */}
+                    <div className="text-center space-y-2 mb-6">
+                        <h2 className="text-3xl font-black tracking-tight text-base-content">Create Account</h2>
+                        <p className="text-sm font-medium text-base-content/60">Join our portal system workspace today</p>
+                    </div>
+
+                    {/* Registration Form */}
+                    <form onSubmit={handleFormSubmit} className="space-y-4">
+                        <div className="form-control">
+                            <label className="label py-1.5">
+                                <span className="label-text font-bold text-base-content/80">Full Name</span>
+                            </label>
+                            <label className="input input-bordered flex items-center gap-3 rounded-xl focus-within:outline-primary bg-base-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 opacity-40 shrink-0"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4Zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10Z"/></svg>
+                                <input type="text" name="name" placeholder="John Doe" className="w-full text-sm" required />
+                            </label>
+                        </div>
+
+                        <div className="form-control">
+                            <label className="label py-1.5">
+                                <span className="label-text font-bold text-base-content/80">Email Address</span>
+                            </label>
+                            <label className="input input-bordered flex items-center gap-3 rounded-xl focus-within:outline-primary bg-base-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 opacity-40 shrink-0"><path d="M2.5 3A1.5 1.5 0 0 0 1 4.5v.793c.026.009.051.02.076.032L7.674 8.51c.206.1.446.1.652 0l6.598-3.185A.755.755 0 0 1 15 5.293V4.5 A1.5 1.5 0 0 0 13.5 3h-11Z" /><path d="M15 6.954 8.978 9.86a2.25 2.25 0 0 1-1.956 0L1 6.954V11.5A1.5 1.5 0 0 0 2.5 13h11a1.5 1.5 0 0 0 1.5-1.5V6.954Z" /></svg>
+                                <input type="email" name="email" placeholder="name@example.com" className="w-full text-sm" required />
+                            </label>
+                        </div>
+
+                        <div className="form-control">
+                            <label className="label py-1.5">
+                                <span className="label-text font-bold text-base-content/80">Photo URL <span className="text-xs opacity-50 font-normal">(Optional)</span></span>
+                            </label>
+                            <label className="input input-bordered flex items-center gap-3 rounded-xl focus-within:outline-primary bg-base-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 opacity-40 shrink-0"><path d="M11.5 1a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5h9zM3 12h8V2H3v10z"/><path d="M6.5 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>
+                                <input type="url" name="photo" placeholder="https://example.com/avatar.jpg" className="w-full text-sm" />
+                            </label>
+                        </div>
+
+                        <div className="form-control">
+                            <label className="label py-1.5">
+                                <span className="label-text font-bold text-base-content/80">Password</span>
+                            </label>
+                            <label className="input input-bordered flex items-center gap-3 rounded-xl focus-within:outline-primary bg-base-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 opacity-40 shrink-0"><path fillRule="evenodd" d="M14 6a4 4 0 0 1-4.899 3.899l-1.955 1.955a.5.5 0 0 1-.353.146H5v1.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-2.293a.5.5 0 0 1 .146-.353l3.955-3.955A4 4 0 1 1 14 6Zm-4-2a.75.75 0 0 0 0 1.5.5.5 0 0 1 .5.5.75.75 0 0 0 1.5 0 2 2 0 0 0-2-2Z" clipRule="evenodd" /></svg>
+                                <input type="password" name="password" placeholder="••••••••" className="w-full text-sm" required />
+                            </label>
+                        </div>
+
+                        <button type="submit" className="btn btn-primary w-full rounded-xl font-bold text-sm shadow-md shadow-primary/20 mt-4 normal-case tracking-wide">
+                            Sign Up
+                        </button>
+                    </form>
+
+                    {/* Divider Separator */}
+                    <div className="divider text-xs font-bold uppercase text-base-content/30 tracking-widest my-6">OR</div>
+
+                    {/* ✅ Custom Structured Google Authentication Button Layout */}
+                    <button 
+                        onClick={triggerGooglePrompt} 
+                        type="button"
+                        className="btn btn-outline w-full rounded-xl flex items-center justify-center gap-3 font-bold text-sm tracking-wide normal-case border-base-300 bg-base-100 hover:bg-base-200 hover:border-base-400 text-base-content transition-all duration-200"
+                    >
+                        <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                            <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                        </svg>
+                        Continue with Google
+                    </button>
+
+                    {/* Footer Login Link Context */}
+                    <p className="text-center text-sm font-medium text-base-content/60 mt-8 border-t border-base-200/60 pt-5">
+                        Already have an account?{' '}
+                        <Link href="/login" className="link link-primary no-underline hover:underline font-bold tracking-tight pl-1">
+                            Login
+                        </Link>
+                    </p>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }

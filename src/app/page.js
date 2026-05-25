@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import api from "@/utils/api"; // Shortcut instance handles base URL and auto-injects JWT tokens
+import api from "@/utils/api"; 
 import Banner from "@/components/Banner";
 import TutorCard from "@/components/TutorCard";
 import WhyChooseUs from "@/components/WhyChooseUs"; 
@@ -14,8 +14,7 @@ export default function Home() {
   useEffect(() => {
     const fetchHomeTutors = async () => {
       try {
-        // SHORTCUT UPGRADE: Replaced raw axios with your api utility instance.
-        // The endpoint path is cleaned up and handles token handshakes silently.
+        // Automatically fetches from your newly registered /tutors/home backend endpoint
         const response = await api.get("/tutors/home");
         setTutors(response.data);
       } catch (error) {
@@ -61,7 +60,8 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {tutors.map((tutor) => (
-              <TutorCard key={tutor._id} tutor={tutor} />
+              // ✅ FIXED: Changed key target from tutor._id to tutor.id to match MySQL rows
+              <TutorCard key={tutor.id} tutor={tutor} />
             ))}
           </div>
         )}

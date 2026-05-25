@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useContext } from "react";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "@/context/AuthContext";
 import axiosSecure from "../../utils/axiosSecure";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
@@ -51,13 +51,14 @@ export default function MyTutors() {
     setIsUpdateLoading(true);
 
     try {
-      const response = await axiosSecure.put(`/tutors/${selectedTutor._id}`, {
+      // Swapped out selectedTutor._id to use selectedTutor.id for MySQL endpoint mapping
+      const response = await axiosSecure.put(`/tutors/${selectedTutor.id}`, {
         ...selectedTutor,
-        hourlyFee: parseFloat(selectedTutor.hourlyFee),
-        totalSlot: parseInt(selectedTutor.totalSlot)
+        price: parseFloat(selectedTutor.price || 0),
+        slots: parseInt(selectedTutor.slots || 0)
       });
       
-      if (response.data.modifiedCount > 0 || response.data.acknowledged) {
+      if (response.data.success) {
         toast.success("Tutor configurations customized successfully!");
         setSelectedTutor(null); // Close modal cleanly
         fetchMyTutors(); // Instantly synchronize underlying grid values
@@ -71,29 +72,33 @@ export default function MyTutors() {
   };
 
   // Handle Entry Deletion with SweetAlert2 confirmation modal framework mapping
-  const handleDelete = (id) => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "This tutor dashboard entry data registry will be erased permanently!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!"
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const response = await axiosSecure.delete(`/tutors/${id}`);
-          if (response.data.deletedCount > 0) {
-            setMyTutors(myTutors.filter(t => t._id !== id));
-            Swal.fire("Deleted!", "The entry has been extracted successfully.", "success");
-          }
-        } catch (error) {
-          toast.error("An execution fault error occurred during deletion.");
+ // Handle Entry Deletion with SweetAlert2 confirmation modal framework mapping
+const handleDelete = (id) => {
+  Swal.fire({
+    title: "Are you sure?",
+    text: "This tutor dashboard entry data registry will be erased permanently!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#3085d6",
+    confirmButtonText: "Yes, delete it!"
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        const response = await axiosSecure.delete(`/tutors/${id}`);
+        
+        // Match the backend payload schema (.success verification)
+        if (response.data.success) {
+          setMyTutors(myTutors.filter(t => t.id !== id));
+          Swal.fire("Deleted!", "The entry has been extracted successfully.", "success");
         }
+      } catch (error) {
+        console.error("Deletion lifecycle exception:", error);
+        toast.error("An execution fault error occurred during deletion.");
       }
-    });
-  };
+    }
+  });
+};
 
   if (loading) {
     return (
@@ -128,12 +133,13 @@ export default function MyTutors() {
             </thead>
             <tbody className="font-medium text-sm">
               {myTutors.map((tutor) => (
-                <tr key={tutor._id} className="hover:bg-base-200/50 transition-colors">
+                <tr key={tutor.id} className="hover:bg-base-200/50 transition-colors">
                   <td>
                     <div className="flex items-center gap-4">
                       <div className="avatar">
                         <div className="mask mask-squircle w-12 h-12">
-                          <img src={tutor.image} alt={tutor.name} />
+                          {/* Updated Image tag targeting to match flat MySQL field name: .photo */}
+                          <img src={tutor.photo || "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=600"} alt={tutor.name} />
                         </div>
                       </div>
                       <div>
@@ -145,9 +151,10 @@ export default function MyTutors() {
                   <td>
                     <span className="badge badge-primary font-semibold text-xs py-2 px-3 rounded-lg">{tutor.subject}</span>
                   </td>
-                  <td className="font-bold text-primary">${tutor.hourlyFee}/hr</td>
+                  {/* Updated fields mapping to align perfectly with backend data outputs */}
+                  <td className="font-bold text-primary">${tutor.price}/hr</td>
                   <td>
-                    <span className="badge badge-ghost font-bold">{tutor.totalSlot} slots</span>
+                    <span className="badge badge-ghost font-bold">{tutor.slots} slots</span>
                   </td>
                   <td className="text-center">
                     <div className="flex justify-center items-center gap-2">
@@ -162,7 +169,7 @@ export default function MyTutors() {
                       
                       {/* Secure Deletion Action Trigger */}
                       <button 
-                        onClick={() => handleDelete(tutor._id)}
+                        onClick={() => handleDelete(tutor.id)}
                         className="btn btn-error btn-sm btn-square rounded-xl text-white shadow-md shadow-error/10 hover:scale-105"
                         aria-label="Delete Tutor Entry"
                       >
@@ -216,8 +223,8 @@ export default function MyTutors() {
                   <label className="label-text font-bold text-base-content/70 mb-1.5 text-xs uppercase tracking-wider">Hourly Fee ($)</label>
                   <input 
                     type="number" 
-                    name="hourlyFee"
-                    value={selectedTutor.hourlyFee || ""}
+                    name="price" // Updated property binder targeting field: price
+                    value={selectedTutor.price || ""}
                     onChange={handleInputChange}
                     className="input input-bordered w-full rounded-xl text-sm font-medium" 
                     required 
@@ -228,8 +235,8 @@ export default function MyTutors() {
                   <label className="label-text font-bold text-base-content/70 mb-1.5 text-xs uppercase tracking-wider">Available Slots</label>
                   <input 
                     type="number" 
-                    name="totalSlot"
-                    value={selectedTutor.totalSlot || ""}
+                    name="slots" // Updated property binder targeting field: slots
+                    value={selectedTutor.slots || ""}
                     onChange={handleInputChange}
                     className="input input-bordered w-full rounded-xl text-sm font-medium" 
                     required 
@@ -238,7 +245,7 @@ export default function MyTutors() {
               </div>
 
               <div className="form-control w-full">
-                <label className="label-text font-bold text-base-content/70 mb-1.5 text-xs uppercase tracking-wider">Location / Deployment Context</label>
+                <label className="label-text font-bold text-base-content/70 mb-1.5 text-xs uppercase tracking-wider">Location</label>
                 <input 
                   type="text" 
                   name="location"
